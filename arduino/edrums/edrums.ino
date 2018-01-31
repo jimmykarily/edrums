@@ -7,14 +7,13 @@
 // Turn to true to see useful message to the serial monitor.
 // Make sure you don't sent these to the sound card by unplugging the MIDI cable.
 
-const bool debug = true;
-const bool plot = true;
-//const bool debug = false;
-//const bool plot = false;
+//const bool debug = true;
+//const bool plot = true;
+const bool debug = false;
+const bool plot = false;
 
+int previousSensorReading = 0;
 int sensorReading = 0;
-const int ledPin = 13;
-int ledState = LOW; // variable used to store the last LED status, to toggle the light
 
 // From the sensor we read values from 0 to 1023. We ignore the first HIT_THRESHOLD
 // values as too soft. That leaves us with sensorRange values which trigger hits.
@@ -34,36 +33,31 @@ int velocity = 0;
 bool coolDown = false;
 
 void setup() {
-  pinMode(ledPin, OUTPUT); // declare the ledPin as as OUTPUT
-
-  // Set MIDI baud rate:
   if (debug) {
-    Serial.begin(9600);
+    Serial.begin(4800);
   } else {
-    Serial.begin(31250);
+    Serial.begin(31250); // Set MIDI baud rate:
   }
 }
 
 void loop() {
+  previousSensorReading = sensorReading;
   sensorReading = analogRead(SNARE_PIN);
 
-  if (plot && sensorReading > 0) {
-    Serial.println(sensorReading);
-  }
+  if (plot && sensorReading > 0) { Serial.println(sensorReading); }
 
-  // Wait until voltage is zeroed.
-  if (coolDown == true) {
-    if (sensorReading == 0) {
-      coolDown = false;
-    }
-  } else if (sensorReading > maxValue) {
+  if (sensorReading == 0 ) {
+    coolDown = false;
+    maxValue = 0;
+  } else if (!coolDown && sensorReading >= previousSensorReading) {
     maxValue = sensorReading;
-    digitalWrite(ledPin, HIGH);
-  // When value is seriously reduced (below half), it is a new hit. Play the last hit and
-  // reset to the new value.
-  } else if (!coolDown) { // if (sensorReading < round(maxValue / 2)) {
+  // When value is seriously reduced (below half), it is a new hit. Play the last hit and reset to the new value.
+  } else if (!coolDown) { //&& sensorReading < maxValue) {
     if (maxValue >= HIT_THRESHOLD) {
-      velocity = round((maxValue - HIT_THRESHOLD + 1) * velocityCoefficient);
+      velocity = round((maxValue - HIT_THRESHOLD + 1) * 4 * velocityCoefficient);
+
+      if (velocity > 127){ velocity = 127; }
+
       if (debug && !plot) {
         printDebugInfo();
       } else if (!plot) {
@@ -71,14 +65,8 @@ void loop() {
         noteOn(0x90, SNARE, velocity);
       }
     }
-
-    resetHit();
+    coolDown = true;
   }
-}
-
-void resetHit() {
-  digitalWrite(ledPin, LOW);
-  maxValue = 0;
 }
 
 void printDebugInfo() {
@@ -86,6 +74,10 @@ void printDebugInfo() {
   Serial.print(coolDown);
   Serial.print(", max value: ");
   Serial.print(maxValue);
+  Serial.print(", sensorReading: ");
+  Serial.print(sensorReading);
+  Serial.print(", previousSensorReading: ");
+  Serial.print(previousSensorReading);
   Serial.print(", velocity: ");
   Serial.print(velocity);
   Serial.print(", velocity coefficient: ");
@@ -98,6 +90,5 @@ void noteOn(int cmd, int pitch, int velocity) {
   Serial.write(cmd);
   Serial.write(pitch);
   Serial.write(velocity);
-  coolDown = true;
   //delay(100);
 }
