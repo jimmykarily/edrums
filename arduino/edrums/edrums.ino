@@ -21,6 +21,7 @@ int sensorReading = 0;
 // velocity.
 const int sensorRange = 1023 - HIT_THRESHOLD;
 const float velocityCoefficient = 127.0 / sensorRange;
+const float sensorGain = 10; // A number to multiply the sensorValue with
 
       // Normalize velocity to 0..127 (Analog pin ranges from 0 to 1023)
       // Take into account that our "effective range is reduced by HIT_THRESHOLD.
@@ -54,7 +55,7 @@ void loop() {
   // When value is seriously reduced (below half), it is a new hit. Play the last hit and reset to the new value.
   } else if (!coolDown) { //&& sensorReading < maxValue) {
     if (maxValue >= HIT_THRESHOLD) {
-      velocity = round((maxValue - HIT_THRESHOLD + 1) * 4 * velocityCoefficient);
+      velocity = round((maxValue - HIT_THRESHOLD + 1) * sensorGain * velocityCoefficient);
 
       if (velocity > 127){ velocity = 127; }
 
